@@ -113,7 +113,7 @@ export default function HomePage() {
             {phase === "error" && (
               <span className="inline-flex items-center justify-center w-5 h-5 bg-red-500 rounded-full flex-shrink-0 text-white text-xs font-bold">✕</span>
             )}
-            <span className={`text-sm font-semibold ${
+            <span className={`text-sm font-semibold whitespace-pre-line ${
               phase === "error" ? "text-red-700"
               : phase === "done" ? "text-emerald-700"
               : "text-blue-700"

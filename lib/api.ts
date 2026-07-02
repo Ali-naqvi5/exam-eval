@@ -10,6 +10,25 @@ export class ApiError extends Error {
   }
 }
 
+/** Turn a FastAPI error response into a clean, human-readable message. */
+async function readError(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const data = JSON.parse(text);
+    if (Array.isArray(data.detail)) {
+      // 422 validation errors — one entry per failing field
+      return data.detail
+        .map((d: { msg?: string }) => (d.msg ?? "").replace(/^Value error,\s*/, ""))
+        .filter(Boolean)
+        .join("\n");
+    }
+    if (typeof data.detail === "string") return data.detail; // HTTPException
+    return text;
+  } catch {
+    return text; // non-JSON body
+  }
+}
+
 export interface JobStatus {
   job_id: string;
   status: "running" | "done" | "error";
@@ -73,7 +92,7 @@ export async function runPipeline(body: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new ApiError(res.status, await readError(res));
   return res.json();
 }
 
