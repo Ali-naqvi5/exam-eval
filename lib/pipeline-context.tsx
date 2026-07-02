@@ -51,10 +51,17 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
           clearTimer();
           localStorage.removeItem(LS_KEY);
           deleteJob(job_id);   // run finished — clear the now-irrelevant job row
-          setPaperId(s.paper_id ?? null);
-          setPhase("done");
-          setStatusMsg("Pipeline complete!");
-          setProgress(100);
+          if (s.paper_id != null) {
+            setPaperId(s.paper_id);
+            setPhase("done");
+            setStatusMsg("Pipeline complete!");
+            setProgress(100);
+          } else {
+            // Completed but nothing saved — never show a misleading success.
+            setPhase("error");
+            setStatusMsg("The pipeline finished but produced no results.");
+            setProgress(0);
+          }
         } else if (s.status === "error") {
           clearTimer();
           localStorage.removeItem(LS_KEY);
@@ -94,10 +101,17 @@ export function PipelineProvider({ children }: { children: ReactNode }) {
         if (s.status === "done") {
           localStorage.removeItem(LS_KEY);
           deleteJob(savedId);   // run finished — clear the now-irrelevant job row
-          setPaperId(s.paper_id ?? null);
-          setPhase("done");
-          setStatusMsg("Pipeline complete!");
-          setProgress(100);
+          if (s.paper_id != null) {
+            setPaperId(s.paper_id);
+            setPhase("done");
+            setStatusMsg("Pipeline complete!");
+            setProgress(100);
+          } else {
+            // Completed but nothing saved — never show a misleading success.
+            setPhase("error");
+            setStatusMsg("The pipeline finished but produced no results.");
+            setProgress(0);
+          }
         } else if (s.status === "error") {
           localStorage.removeItem(LS_KEY);
           deleteJob(savedId);   // run ended in error — clear the job row
