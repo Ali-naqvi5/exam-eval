@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { usePipeline } from "@/lib/pipeline-context";
+import { usePipeline, LS_KEY } from "@/lib/pipeline-context";
 
 const FORM_KEY = "exameval_form";
 
@@ -57,13 +57,27 @@ export default function HomePage() {
     qp_url: "", qp_metadata_raw: "", ms_url: "", ms_metadata_raw: "",
   });
 
-  // Rehydrate the form after a refresh so inputs aren't lost mid-run.
+  // Restore the fields after a refresh ONLY while a run is actually in progress
+  // (a job id is stored). On an idle reload — no active job — start blank and drop
+  // any stale saved form, so inputs are kept mid-run but not when idle.
   useEffect(() => {
     try {
+      const hasActiveJob = localStorage.getItem(LS_KEY);
       const saved = localStorage.getItem(FORM_KEY);
-      if (saved) setForm(JSON.parse(saved));
+      if (hasActiveJob && saved) {
+        setForm(JSON.parse(saved));
+      } else {
+        localStorage.removeItem(FORM_KEY);
+      }
     } catch { /* ignore malformed storage */ }
   }, []);
+
+  // Once a run ends, stop retaining the inputs across reloads.
+  useEffect(() => {
+    if (phase === "done" || phase === "error") {
+      try { localStorage.removeItem(FORM_KEY); } catch { /* ignore */ }
+    }
+  }, [phase]);
 
   async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault();

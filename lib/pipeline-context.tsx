@@ -26,7 +26,7 @@ const Ctx = createContext<PipelineCtx | null>(null);
 // Stored in localStorage (not sessionStorage) so a running job is recoverable
 // across full refreshes and new tabs. The DB-backed status endpoint is the
 // source of truth, so a stale id simply 404s and we fall back to idle.
-const LS_KEY = "exameval_job_id";
+export const LS_KEY = "exameval_job_id";
 
 export function PipelineProvider({ children }: { children: ReactNode }) {
   const [phase, setPhase]         = useState<Phase>("idle");
