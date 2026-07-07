@@ -22,6 +22,34 @@ const FIELDS: Field[] = [
   { label: "MS Metadata",         key: "ms_metadata_raw",  placeholder: "e.g. Edexcel GCSE Mathematics 2023 Paper 1H Mark Scheme" },
 ];
 
+// A direct link to a .pdf: http(s) URL whose path ends in .pdf, followed only by
+// an optional ?query or #fragment. The trailing anchor rejects "file.pdf.exe".
+// Mirrors the backend is_pdf_link() so the button and the API never disagree.
+function isPdfLink(url: string): boolean {
+  return /^https?:\/\/.+\.pdf(\?.*)?(#.*)?$/i.test(url.trim());
+}
+
+// True if the text looks like a URL (used to reject links in the metadata fields).
+function looksLikeUrl(v: string): boolean {
+  return /^https?:\/\/\S+/i.test(v.trim());
+}
+
+// Per-field validation message, or null if the field is empty or valid.
+// Empty fields return null so the form doesn't load covered in red; the submit
+// button is still disabled until every field is filled (see isFormValid).
+function fieldError(key: keyof FormState, value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  if (key === "qp_url" || key === "ms_url") {
+    if (!isPdfLink(v))
+      return "Enter a direct link to a .pdf file (starting with http:// or https://).";
+  } else {
+    if (looksLikeUrl(v))
+      return "Enter the paper details (e.g. 'AQA GCSE Biology 2023 Paper 1H'), not a URL.";
+  }
+  return null;
+}
+
 export default function HomePage() {
   const router = useRouter();
   const { phase, statusMsg, progress, paperId, start, reset } = usePipeline();
@@ -42,6 +70,13 @@ export default function HomePage() {
     try { localStorage.setItem(FORM_KEY, JSON.stringify(form)); } catch { /* ignore */ }
     await start(form);
   }
+
+  // Real-time validation — mirrors the backend so the button and the API agree.
+  const sameUrl =
+    form.qp_url.trim() !== "" && form.qp_url.trim() === form.ms_url.trim();
+  const allFilled = FIELDS.every(({ key }) => form[key].trim() !== "");
+  const noFieldErrors = FIELDS.every(({ key }) => !fieldError(key, form[key]));
+  const isFormValid = allFilled && noFieldErrors && !sameUrl;
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -64,26 +99,39 @@ export default function HomePage() {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div className="grid grid-cols-1 gap-5">
-            {FIELDS.map(({ label, key, placeholder }) => (
-              <div key={key}>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
-                <input
-                  type="text"
-                  required
-                  value={form[key]}
-                  placeholder={placeholder}
-                  onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                  disabled={phase === "running"}
-                  className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-50 disabled:text-slate-400 transition-shadow"
-                />
-              </div>
-            ))}
+            {FIELDS.map(({ label, key, placeholder }) => {
+              // Show the same-URL warning under the Mark Scheme URL field.
+              const err = fieldError(key, form[key])
+                ?? (key === "ms_url" && sameUrl
+                    ? "The Mark Scheme URL is identical to the Question Paper URL - they must be two different PDFs."
+                    : null);
+              return (
+                <div key={key}>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
+                  <input
+                    type="text"
+                    required
+                    value={form[key]}
+                    placeholder={placeholder}
+                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                    disabled={phase === "running"}
+                    aria-invalid={err ? true : undefined}
+                    className={`w-full border rounded-xl px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-transparent disabled:bg-slate-50 disabled:text-slate-400 transition-shadow ${
+                      err
+                        ? "border-red-300 focus:ring-red-500"
+                        : "border-slate-300 focus:ring-blue-500"
+                    }`}
+                  />
+                  {err && <p className="mt-1.5 text-xs text-red-600">{err}</p>}
+                </div>
+              );
+            })}
           </div>
 
           <button
             type="submit"
-            disabled={phase === "running"}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold rounded-xl py-3 text-sm transition-colors shadow-sm mt-2"
+            disabled={phase === "running" || !isFormValid}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl py-3 text-sm transition-colors shadow-sm mt-2"
           >
             {phase === "running" ? "Pipeline running…" : "Run Pipeline"}
           </button>
