@@ -22,11 +22,17 @@ const FIELDS: Field[] = [
   { label: "MS Metadata",         key: "ms_metadata_raw",  placeholder: "e.g. Edexcel GCSE Mathematics 2023 Paper 1H Mark Scheme" },
 ];
 
-// A direct link to a .pdf: http(s) URL whose path ends in .pdf, followed only by
-// an optional ?query or #fragment. The trailing anchor rejects "file.pdf.exe".
-// Mirrors the backend is_pdf_link() so the button and the API never disagree.
+// Accept a PDF link in two shapes (mirrors the backend is_pdf_link):
+//  1. a direct link whose path ends in .pdf (optional ?query / #fragment). The
+//     trailing anchor still rejects double-extension tricks like "file.pdf.exe".
+//  2. a viewer/proxy link that carries the real PDF in a ?pdf=…​.pdf parameter
+//     (e.g. savemyexams: ".../paper/…/?pdf=https%3A%2F%2F…​.pdf&type=ms").
 function isPdfLink(url: string): boolean {
-  return /^https?:\/\/.+\.pdf(\?.*)?(#.*)?$/i.test(url.trim());
+  const u = url.trim();
+  if (!/^https?:\/\//i.test(u)) return false;
+  if (/\.pdf(\?.*)?(#.*)?$/i.test(u)) return true;
+  if (/[?&]pdf=[^&]*\.pdf/i.test(u)) return true;
+  return false;
 }
 
 // True if the text looks like a URL (used to reject links in the metadata fields).
