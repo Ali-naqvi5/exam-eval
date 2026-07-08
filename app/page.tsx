@@ -41,11 +41,12 @@ function isValidUrl(url: string): boolean {
   } catch {
     return false;
   }
-  // Require a dot in the RAW host token so bare text (e.g. "biologypaper", "1234")
-  // is rejected. We can't use URL.hostname here — it coerces "1234" into an IP with
-  // dots. This mirrors the backend's `"." in netloc`.
-  const host = n.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").split(/[/?#]/)[0];
-  return host.includes(".");
+  // Host must look like a real domain: labels ending in a 2+ letter TLD. This is a
+  // sanity filter, NOT proof the domain exists — only fetching it server-side can
+  // confirm that. It rejects bare text and malformed hosts ("hello", "1234", "ss.").
+  // We read the raw host token (not URL.hostname, which coerces "1234" into an IP).
+  const host = n.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").split(/[/?#]/)[0].split(":")[0];
+  return /^([a-z0-9-]+\.)+[a-z]{2,}$/i.test(host);
 }
 
 // True if the text looks like a URL (used to reject links in the metadata fields).
