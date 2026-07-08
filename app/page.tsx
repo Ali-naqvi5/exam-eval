@@ -22,17 +22,25 @@ const FIELDS: Field[] = [
   { label: "MS Metadata",         key: "ms_metadata_raw",  placeholder: "e.g. Edexcel GCSE Mathematics 2023 Paper 1H Mark Scheme" },
 ];
 
-// Accept a PDF link in two shapes (mirrors the backend is_pdf_link):
-//  1. a direct link whose path ends in .pdf (optional ?query / #fragment). The
-//     trailing anchor still rejects double-extension tricks like "file.pdf.exe".
-//  2. a viewer/proxy link that carries the real PDF in a ?pdf=…​.pdf parameter
-//     (e.g. savemyexams: ".../paper/…/?pdf=https%3A%2F%2F…​.pdf&type=ms").
-function isPdfLink(url: string): boolean {
-  const u = url.trim();
-  if (!/^https?:\/\//i.test(u)) return false;
-  if (/\.pdf(\?.*)?(#.*)?$/i.test(u)) return true;
-  if (/[?&]pdf=[^&]*\.pdf/i.test(u)) return true;
-  return false;
+// Prepend https:// to a schemeless link (e.g. "www.x.com/a.pdf"), mirroring the
+// backend _normalize_url so the button enables for bare domains. The backend
+// normalizes again on receipt, so sending the raw value is fine.
+function normalizeUrl(v: string): string {
+  const s = v.trim();
+  return s && !/^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? "https://" + s : s;
+}
+
+// Only require a well-formed URL. We normalize a missing scheme first (bare domain
+// → https://), then let the browser's URL parser decide validity — the frontend no
+// longer enforces the scheme itself. Whether the link actually yields a PDF (direct,
+// ?pdf= proxy, or embedded in HTML) is resolved server-side at download time.
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(normalizeUrl(url));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // True if the text looks like a URL (used to reject links in the metadata fields).
@@ -47,8 +55,8 @@ function fieldError(key: keyof FormState, value: string): string | null {
   const v = value.trim();
   if (!v) return null;
   if (key === "qp_url" || key === "ms_url") {
-    if (!isPdfLink(v))
-      return "Enter a direct link to a .pdf file (starting with http:// or https://).";
+    if (!isValidUrl(v))
+      return "Enter a valid link.";
   } else {
     if (looksLikeUrl(v))
       return "Enter the paper details (e.g. 'AQA GCSE Biology 2023 Paper 1H'), not a URL.";
