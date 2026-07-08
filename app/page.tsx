@@ -35,12 +35,17 @@ function normalizeUrl(v: string): string {
 // longer enforces the scheme itself. Whether the link actually yields a PDF (direct,
 // ?pdf= proxy, or embedded in HTML) is resolved server-side at download time.
 function isValidUrl(url: string): boolean {
+  const n = normalizeUrl(url);
   try {
-    new URL(normalizeUrl(url));
-    return true;
+    new URL(n); // must parse (rejects spaces, control chars, etc.)
   } catch {
     return false;
   }
+  // Require a dot in the RAW host token so bare text (e.g. "biologypaper", "1234")
+  // is rejected. We can't use URL.hostname here — it coerces "1234" into an IP with
+  // dots. This mirrors the backend's `"." in netloc`.
+  const host = n.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").split(/[/?#]/)[0];
+  return host.includes(".");
 }
 
 // True if the text looks like a URL (used to reject links in the metadata fields).
